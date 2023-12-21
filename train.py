@@ -18,98 +18,98 @@ from scipy import ndimage
 import os
 
 def train(data_loader, model, optimizer, scheduler, total_epochs, save_interval, save_folder, sets):
-# settings
-batches_per_epoch = len(data_loader)
-log.info('{} epochs in total, {} batches per epoch'.format(total_epochs, batches_per_epoch))
-loss_seg = nn.CrossEntropyLoss(ignore_index=-1)
-
-print("Current setting is:")
-print(sets)
-print("\n\n")     
-if not sets.no_cuda:
-    loss_seg = loss_seg.cuda()
+    # settings
+    batches_per_epoch = len(data_loader)
+    log.info('{} epochs in total, {} batches per epoch'.format(total_epochs, batches_per_epoch))
+    loss_seg = nn.CrossEntropyLoss(ignore_index=-1)
     
-model.train()
-train_time_sp = time.time()
-for epoch in range(total_epochs):
-    log.info('Start epoch {}'.format(epoch))
+    print("Current setting is:")
+    print(sets)
+    print("\n\n")     
+    if not sets.no_cuda:
+        loss_seg = loss_seg.cuda()
+        
+    model.train()
+    train_time_sp = time.time()
+    for epoch in range(total_epochs):
+        log.info('Start epoch {}'.format(epoch))
+        
+        scheduler.step()
+        log.info('lr = {}'.format(scheduler.get_lr()))
+        
+        for batch_id, batch_data in enumerate(data_loader):
+            # getting data batch
+            batch_id_sp = epoch * batches_per_epoch
+            volumes, label_masks, class_array = batch_data
     
-    scheduler.step()
-    log.info('lr = {}'.format(scheduler.get_lr()))
+            if not sets.no_cuda: 
+                volumes = volumes.cuda()
+                class_array = class_array.cuda()
     
-    for batch_id, batch_data in enumerate(data_loader):
-        # getting data batch
-        batch_id_sp = epoch * batches_per_epoch
-        volumes, label_masks, class_array = batch_data
-
-        if not sets.no_cuda: 
-            volumes = volumes.cuda()
-            class_array = class_array.cuda()
-
-        optimizer.zero_grad()
-        out_masks = model(volumes)
-        # # resize label
-        # [n, _, d, h, w] = out_masks.shape
-        # new_label_masks = np.zeros([n, d, h, w])
-        # for label_id in range(n):
-        #     label_mask = label_masks[label_id]
-        #     [ori_c, ori_d, ori_h, ori_w] = label_mask.shape
-        #     label_mask = np.reshape(label_mask, [ori_d, ori_h, ori_w])
-        #     scale = [d*1.0/ori_d, h*1.0/ori_h, w*1.0/ori_w]
-        #     label_mask = ndimage.interpolation.zoom(label_mask, scale, order=0)
-        #     new_label_masks[label_id] = label_mask
-        #
-        # new_label_masks = torch.tensor(new_label_masks).to(torch.int64)
-        # if not sets.no_cuda:
-        #     new_label_masks = new_label_masks.cuda()
-
-        # calculating loss
-        loss_value_seg = loss_seg(out_masks, class_array)
-        loss = loss_value_seg
-        loss.backward()                
-        optimizer.step()
-
-        avg_batch_time = (time.time() - train_time_sp) / (1 + batch_id_sp)
-        log.info(
-                'Batch: {}-{} ({}), loss = {:.3f}, loss_seg = {:.3f}, avg_batch_time = {:.3f}'\
-                .format(epoch, batch_id, batch_id_sp, loss.item(), loss_value_seg.item(), avg_batch_time))
-      
-        if not sets.ci_test:
-            # save model
-            if batch_id == 0 and batch_id_sp != 0 and batch_id_sp % save_interval == 0:
-            #if batch_id_sp != 0 and batch_id_sp % save_interval == 0:
-                model_save_path = '{}_epoch_{}_batch_{}.pth.tar'.format(save_folder, epoch, batch_id)
-                model_save_dir = os.path.dirname(model_save_path)
-                if not os.path.exists(model_save_dir):
-                    os.makedirs(model_save_dir)
-                
-                log.info('Save checkpoints: epoch = {}, batch_id = {}'.format(epoch, batch_id)) 
-                torch.save({
-                            'epoch': epoch,
-                            'batch_id': batch_id,
-                            'state_dict': model.state_dict(),
-                            'optimizer': optimizer.state_dict()},
-                            model_save_path)
-                        
-print('Finished training')            
-if sets.ci_test:
-    exit()
+            optimizer.zero_grad()
+            out_masks = model(volumes)
+            # # resize label
+            # [n, _, d, h, w] = out_masks.shape
+            # new_label_masks = np.zeros([n, d, h, w])
+            # for label_id in range(n):
+            #     label_mask = label_masks[label_id]
+            #     [ori_c, ori_d, ori_h, ori_w] = label_mask.shape
+            #     label_mask = np.reshape(label_mask, [ori_d, ori_h, ori_w])
+            #     scale = [d*1.0/ori_d, h*1.0/ori_h, w*1.0/ori_w]
+            #     label_mask = ndimage.interpolation.zoom(label_mask, scale, order=0)
+            #     new_label_masks[label_id] = label_mask
+            #
+            # new_label_masks = torch.tensor(new_label_masks).to(torch.int64)
+            # if not sets.no_cuda:
+            #     new_label_masks = new_label_masks.cuda()
+    
+            # calculating loss
+            loss_value_seg = loss_seg(out_masks, class_array)
+            loss = loss_value_seg
+            loss.backward()                
+            optimizer.step()
+    
+            avg_batch_time = (time.time() - train_time_sp) / (1 + batch_id_sp)
+            log.info(
+                    'Batch: {}-{} ({}), loss = {:.3f}, loss_seg = {:.3f}, avg_batch_time = {:.3f}'\
+                    .format(epoch, batch_id, batch_id_sp, loss.item(), loss_value_seg.item(), avg_batch_time))
+          
+            if not sets.ci_test:
+                # save model
+                if batch_id == 0 and batch_id_sp != 0 and batch_id_sp % save_interval == 0:
+                #if batch_id_sp != 0 and batch_id_sp % save_interval == 0:
+                    model_save_path = '{}_epoch_{}_batch_{}.pth.tar'.format(save_folder, epoch, batch_id)
+                    model_save_dir = os.path.dirname(model_save_path)
+                    if not os.path.exists(model_save_dir):
+                        os.makedirs(model_save_dir)
+                    
+                    log.info('Save checkpoints: epoch = {}, batch_id = {}'.format(epoch, batch_id)) 
+                    torch.save({
+                                'epoch': epoch,
+                                'batch_id': batch_id,
+                                'state_dict': model.state_dict(),
+                                'optimizer': optimizer.state_dict()},
+                                model_save_path)
+                            
+    print('Finished training')            
+    if sets.ci_test:
+        exit()
     
 if __name__ == '__main__':
     # settting
     sets = parse_opts()
-    if sets.ci_test:
-    sets.img_list = './toy_data/test_ci.txt'
-    sets.n_epochs = 1
-    sets.no_cuda = True
-    sets.data_root = './toy_data'
-    sets.pretrain_path = ''
-    sets.num_workers = 0
-    sets.model_depth = 10
-    sets.resnet_shortcut = 'A'
-    sets.input_D = 14
-    sets.input_H = 28
-    sets.input_W = 28
+        if sets.ci_test:
+        sets.img_list = './toy_data/test_ci.txt'
+        sets.n_epochs = 1
+        sets.no_cuda = True
+        sets.data_root = './toy_data'
+        sets.pretrain_path = ''
+        sets.num_workers = 0
+        sets.model_depth = 10
+        sets.resnet_shortcut = 'A'
+        sets.input_D = 14
+        sets.input_H = 28
+        sets.input_W = 28
     
     # getting model
     torch.manual_seed(sets.manual_seed)
