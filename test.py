@@ -97,7 +97,7 @@ if __name__ == '__main__':
     dices = np.zeros([Nimg, sets.n_seg_classes])
     for idx in range(Nimg):
         label = nib.load(os.path.join(sets.data_root, label_names[idx]))
-        label = label.get_data()
+        label = label.get_fdata()
         dices[idx, :] = seg_eval(masks[idx], label, range(sets.n_seg_classes))
     
     # print result
