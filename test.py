@@ -15,15 +15,16 @@ import numpy as np
 
 def seg_eval(pred, label, clss):
     """
-    calculate the dice between prediction and ground truth
+    calculate the accuracy between prediction and ground truth
     input:
         pred: predicted mask
-        label: groud truth
+        label: ground truth
         clss: eg. [0, 1] for binary class
     """
     Ncls = len(clss)
-    dices = np.zeros(Ncls)
-    [depth, height, width] = pred.shape
+    accuracies = np.zeros(Ncls)
+    [depth, height, width] = label.shape  # Assuming label has the correct shape
+
     for idx, cls in enumerate(clss):
         # binary map
         pred_cls = np.zeros([depth, height, width])
@@ -31,23 +32,23 @@ def seg_eval(pred, label, clss):
         label_cls = np.zeros([depth, height, width])
         label_cls[np.where(label == cls)] = 1
 
-        # cal the inter & conv
-        s = pred_cls + label_cls
-        inter = len(np.where(s >= 2)[0])
-        conv = len(np.where(s >= 1)[0]) + inter
+        # calculate accuracy
+        correct_pixels = np.sum(np.logical_and(pred_cls == 1, label_cls == 1))
+        total_pixels = np.sum(label_cls == 1)
+        
         try:
-            dice = 2.0 * inter / conv
-        except:
-            print("conv is zeros when dice = 2.0 * inter / conv")
-            dice = -1
+            accuracy = correct_pixels / total_pixels
+        except ZeroDivisionError:
+            print("Total pixels is zero when calculating accuracy.")
+            accuracy = -1
 
-        dices[idx] = dice
+        accuracies[idx] = accuracy
 
-    return dices
+    return accuracies
 
 def test(data_loader, model, img_names, sets):
     masks = []
-    model.eval() # for testing 
+    model.eval()  # for testing
     for batch_id, batch_data in enumerate(data_loader):
         # forward
         volume = batch_data
@@ -57,18 +58,13 @@ def test(data_loader, model, img_names, sets):
             probs = model(volume)
             probs = F.softmax(probs, dim=1)
 
-        # resize mask to original size
-        [batchsize, _, mask_d, mask_h, mask_w] = probs.shape
-        data = nib.load(os.path.join(sets.data_root, img_names[batch_id]))
-        data = data.get_fdata()
-        [depth, height, width] = data.shape
-        mask = probs[0]
-        scale = [1, depth*1.0/mask_d, height*1.0/mask_h, width*1.0/mask_w]
-        mask = ndimage.zoom(mask.cpu(), scale, order=1)
-        mask = np.argmax(mask, axis=0)
-        
-        masks.append(mask)
- 
+            # Extract predicted classes
+            predicted_classes = torch.argmax(probs, dim=1)
+
+            print('predicted_classes', predicted_classes)
+
+        masks.append(predicted_classes.cpu().numpy())
+
     return masks
 
 
