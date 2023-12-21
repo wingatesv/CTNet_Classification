@@ -31,7 +31,7 @@ def parse_opts():
         'Initial learning rate (divided by 10 while training by lr scheduler)')
     parser.add_argument(
         '--num_workers',
-        default=4,
+        default=2,
         type=int,
         help='Number of jobs')
     parser.add_argument(
@@ -45,7 +45,7 @@ def parse_opts():
         help='Interation for saving model')
     parser.add_argument(
         '--n_epochs',
-        default=200,
+        default=10,
         type=int,
         help='Number of total epochs to run')
     parser.add_argument(
