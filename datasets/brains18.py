@@ -197,7 +197,7 @@ class BrainS18Dataset(Dataset):
         # resize data
         data = self.__resize_data__(data)
 
-    # normalization datas
-    data = self.__itensity_normalize_one_volume__(data)
+        # normalization datas
+        data = self.__itensity_normalize_one_volume__(data)
 
-    return data
+        return data
