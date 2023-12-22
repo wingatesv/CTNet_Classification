@@ -100,7 +100,7 @@ def train(data_loader, model, optimizer, scheduler, total_epochs, save_interval,
 if __name__ == '__main__':
     # settting
     sets = parse_opts()
-        if sets.ci_test:
+    if sets.ci_test:
         sets.img_list = './toy_data/test_ci.txt'
         sets.n_epochs = 1
         sets.no_cuda = True
