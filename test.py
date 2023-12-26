@@ -11,43 +11,43 @@ import sys
 import os
 from utils.file_process import load_lines
 import numpy as np
+from sklearn.metrics import f1_score
 
+# def seg_eval(pred, label, clss):
+#     """
+#     calculate the accuracy between prediction and ground truth
+#     input:
+#         pred: predicted mask
+#         label: ground truth
+#         clss: eg. [0, 1] for binary class
+#     """
+#     Ncls = len(clss)
+#     accuracies = np.zeros(Ncls)
+#     [depth, height, width] = label.shape  # Assuming label has the correct shape
 
-def seg_eval(pred, label, clss):
-    """
-    calculate the accuracy between prediction and ground truth
-    input:
-        pred: predicted mask
-        label: ground truth
-        clss: eg. [0, 1] for binary class
-    """
-    Ncls = len(clss)
-    accuracies = np.zeros(Ncls)
-    [depth, height, width] = label.shape  # Assuming label has the correct shape
+#     for idx, cls in enumerate(clss):
+#         # binary map
+#         pred_cls = np.zeros([depth, height, width])
+#         pred_cls[np.where(pred == cls)] = 1
+#         label_cls = np.zeros([depth, height, width])
+#         label_cls[np.where(label == cls)] = 1
 
-    for idx, cls in enumerate(clss):
-        # binary map
-        pred_cls = np.zeros([depth, height, width])
-        pred_cls[np.where(pred == cls)] = 1
-        label_cls = np.zeros([depth, height, width])
-        label_cls[np.where(label == cls)] = 1
-
-        # calculate accuracy
-        correct_pixels = np.sum(np.logical_and(pred_cls == 1, label_cls == 1))
-        total_pixels = np.sum(label_cls == 1)
+#         # calculate accuracy
+#         correct_pixels = np.sum(np.logical_and(pred_cls == 1, label_cls == 1))
+#         total_pixels = np.sum(label_cls == 1)
         
-        try:
-            accuracy = correct_pixels / total_pixels
-        except ZeroDivisionError:
-            print("Total pixels is zero when calculating accuracy.")
-            accuracy = -1
+#         try:
+#             accuracy = correct_pixels / total_pixels
+#         except ZeroDivisionError:
+#             print("Total pixels is zero when calculating accuracy.")
+#             accuracy = -1
 
-        accuracies[idx] = accuracy
+#         accuracies[idx] = accuracy
 
-    return accuracies
+#     return accuracies
 
-def test(data_loader, model, img_names, sets):
-    masks = []
+def test(data_loader, model, labels, sets):
+    predictions = []
     model.eval()  # for testing
     for batch_id, batch_data in enumerate(data_loader):
         # forward
@@ -59,13 +59,21 @@ def test(data_loader, model, img_names, sets):
             probs = F.softmax(probs, dim=1)
 
             # Extract predicted classes
-            predicted_classes = torch.argmax(probs, dim=1)
+            prediction = torch.argmax(probs, dim=1)
 
-            print('predicted_classes', predicted_classes)
+            print('prediction: ', prediction)
 
-        masks.append(predicted_classes.cpu().numpy())
+        predictions.append(prediction.cpu().numpy())
+    
+    # Calculate accuracy
+    correct_predictions = sum(p == t for p, t in zip(predictions, labels))
+    accuracy = correct_predictions / len(labels)
 
-    return masks
+    # Calculate F1 score
+    flat_predictions = [item for sublist in predictions for item in sublist]
+    f1 = f1_score(labels, flat_predictions, average='binary')  # Assuming binary classification
+
+    return accuracy, f1
 
 
 if __name__ == '__main__':
@@ -84,19 +92,24 @@ if __name__ == '__main__':
     data_loader = DataLoader(testing_data, batch_size=1, shuffle=False, num_workers=1, pin_memory=False)
 
     # testing
-    img_names = [info.split(" ")[0] for info in load_lines(sets.img_list)]
-    masks = test(data_loader, net, img_names, sets)
+    # img_names = [info.split(" ")[0] for info in load_lines(sets.img_list)]
+    # masks = test(data_loader, net, img_names, sets)
     
     # evaluation: calculate dice 
-    label_names = [info.split(" ")[1] for info in load_lines(sets.img_list)]
-    Nimg = len(label_names)
-    dices = np.zeros([Nimg, sets.n_seg_classes])
-    for idx in range(Nimg):
-        label = nib.load(os.path.join(sets.data_root, label_names[idx]))
-        label = label.get_fdata()
-        dices[idx, :] = seg_eval(masks[idx], label, range(sets.n_seg_classes))
+    labels = [info.split(" ")[2] for info in load_lines(sets.img_list)]
+
+    accuracy, f1 = test(data_loader, net, labels, sets)
+
+    print('Accuracy: {:.4%}'.format(accuracy))
+    print('F1-Score: {:.4%}'.format(f1))
+    # Nimg = len(label_names)
+    # dices = np.zeros([Nimg, sets.n_seg_classes])
+    # for idx in range(Nimg):
+    #     label = nib.load(os.path.join(sets.data_root, label_names[idx]))
+    #     label = label.get_fdata()
+    #     dices[idx, :] = seg_eval(masks[idx], label, range(sets.n_seg_classes))
     
-    # print result
-    for idx in range(1, sets.n_seg_classes):
-        mean_dice_per_task = np.mean(dices[:, idx])
-        print('mean dice for class-{} is {}'.format(idx, mean_dice_per_task))   
+    # # print result
+    # for idx in range(1, sets.n_seg_classes):
+    #     mean_dice_per_task = np.mean(dices[:, idx])
+    #     print('mean dice for class-{} is {}'.format(idx, mean_dice_per_task))   
