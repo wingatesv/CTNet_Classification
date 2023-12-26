@@ -96,11 +96,11 @@ if __name__ == '__main__':
     # masks = test(data_loader, net, img_names, sets)
     
     # evaluation: calculate dice 
-    labels = [info.split(" ")[2] for info in load_lines(sets.img_list)]
+    labels = [int(info.split(" ")[2]) for info in load_lines(sets.img_list)]
 
     accuracy, f1 = test(data_loader, net, labels, sets)
 
-    print('Accuracy: {:.4%}'.format(accuracy))
+    print('Accuracy: {:.4%}'.format(accuracy.item()))
     print('F1-Score: {:.4%}'.format(f1))
     # Nimg = len(label_names)
     # dices = np.zeros([Nimg, sets.n_seg_classes])
