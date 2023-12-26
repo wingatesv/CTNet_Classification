@@ -40,25 +40,27 @@ class BrainS18Dataset(Dataset):
             # read image and labels
             ith_info = self.img_list[idx].split(" ")
             img_name = os.path.join(self.root_dir, ith_info[0])
-            label_name = os.path.join(self.root_dir, ith_info[1])
+            # label_name = os.path.join(self.root_dir, ith_info[1])
             class_array = int(ith_info[2])
             class_array = torch.tensor(class_array, dtype=torch.long)
             assert os.path.isfile(img_name)
-            assert os.path.isfile(label_name)
+            # assert os.path.isfile(label_name)
             img = nibabel.load(img_name)  # We have transposed the data from WHD format to DHW
             assert img is not None
-            mask = nibabel.load(label_name)
-            assert mask is not None
+            # mask = nibabel.load(label_name)
+            # assert mask is not None
             
             # data processing
-            img_array, mask_array = self.__training_data_process__(img, mask)
+            # img_array, mask_array = self.__training_data_process__(img, mask)
+            img_array = self.__training_data_process__(img)
     
             # 2 tensor array
             img_array = self.__nii2tensorarray__(img_array)
-            mask_array = self.__nii2tensorarray__(mask_array)
+            # mask_array = self.__nii2tensorarray__(mask_array)
     
-            assert img_array.shape ==  mask_array.shape, "img shape:{} is not equal to mask shape:{}".format(img_array.shape, mask_array.shape)
-            return img_array, mask_array, class_array
+            # assert img_array.shape ==  mask_array.shape, "img shape:{} is not equal to mask shape:{}".format(img_array.shape, mask_array.shape)
+            # return img_array, mask_array, class_array
+            return img_array, class_array
         
         elif self.phase == "test":
             # read image
@@ -169,25 +171,31 @@ class BrainS18Dataset(Dataset):
         
         return data, label
     
-    def __training_data_process__(self, data, label): 
+    # def __training_data_process__(self, data, label): 
+    def __training_data_process__(self, data): 
         # crop data according net input size
         data = data.get_fdata()
-        label = label.get_fdata()
+        # label = label.get_fdata()
+
+        # only use the middle slice for the depth
+        data = data[:, :, 10:70] 
         
         # drop out the invalid range
-        data, label = self.__drop_invalid_range__(data, label)
+        # data, label = self.__drop_invalid_range__(data, label)
+        data = self.__drop_invalid_range__(data)
         
         # crop data
-        data, label = self.__crop_data__(data, label) 
+        # data, label = self.__crop_data__(data, label)
     
         # resize data
         data = self.__resize_data__(data)
-        label = self.__resize_data__(label)
+        # label = self.__resize_data__(label)
     
         # normalization datas
         data = self.__itensity_normalize_one_volume__(data)
     
-        return data, label
+        # return data, label
+        return data
     
     
     def __testing_data_process__(self, data): 
