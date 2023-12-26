@@ -38,7 +38,8 @@ def train(data_loader, model, optimizer, scheduler, total_epochs, save_interval,
         for batch_id, batch_data in enumerate(data_loader):
             # getting data batch
             batch_id_sp = epoch * batches_per_epoch
-            volumes, label_masks, class_array = batch_data
+            # volumes, label_masks, class_array = batch_data
+            volumes, class_array = batch_data
     
             if not sets.no_cuda: 
                 volumes = volumes.cuda()
@@ -116,7 +117,7 @@ if __name__ == '__main__':
     # getting model
     torch.manual_seed(sets.manual_seed)
     model, parameters = generate_model(sets) 
-    print (model)
+    # print (model)
     # optimizer
     if sets.ci_test:
         params = [{'params': parameters, 'lr': sets.learning_rate}]
