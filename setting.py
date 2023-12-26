@@ -65,14 +65,14 @@ def parse_opts():
         help='Input size of width')
     parser.add_argument(
         '--resume_path',
-        default='',
+        default='trails/models/resnet_50_epoch_110_batch_0.pth.tar',
         type=str,
         help=
         'Path for resume model.'
     )
     parser.add_argument(
         '--pretrain_path',
-        default='pretrain/resnet_50.pth',
+        default='pretrain/resnet_50_23dataset.pth',
         type=str,
         help=
         'Path for pretrained model.'
