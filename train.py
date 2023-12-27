@@ -21,7 +21,7 @@ def train(data_loader, model, optimizer, scheduler, total_epochs, save_interval,
     # settings
     batches_per_epoch = len(data_loader)
     log.info('{} epochs in total, {} batches per epoch'.format(total_epochs, batches_per_epoch))
-    loss_seg = nn.CrossEntropyLoss(ignore_index=-1)
+    loss_seg = nn.CrossEntropyLoss()
     
     print("Current setting is:")
     print(sets)
@@ -47,20 +47,6 @@ def train(data_loader, model, optimizer, scheduler, total_epochs, save_interval,
     
             optimizer.zero_grad()
             out_masks = model(volumes)
-            # # resize label
-            # [n, _, d, h, w] = out_masks.shape
-            # new_label_masks = np.zeros([n, d, h, w])
-            # for label_id in range(n):
-            #     label_mask = label_masks[label_id]
-            #     [ori_c, ori_d, ori_h, ori_w] = label_mask.shape
-            #     label_mask = np.reshape(label_mask, [ori_d, ori_h, ori_w])
-            #     scale = [d*1.0/ori_d, h*1.0/ori_h, w*1.0/ori_w]
-            #     label_mask = ndimage.interpolation.zoom(label_mask, scale, order=0)
-            #     new_label_masks[label_id] = label_mask
-            #
-            # new_label_masks = torch.tensor(new_label_masks).to(torch.int64)
-            # if not sets.no_cuda:
-            #     new_label_masks = new_label_masks.cuda()
     
             # calculating loss
             loss_value_seg = loss_seg(out_masks, class_array)
@@ -68,14 +54,20 @@ def train(data_loader, model, optimizer, scheduler, total_epochs, save_interval,
             loss.backward()                
             optimizer.step()
 
+            # Calculate training accuracy
+            _, predicted_labels = torch.max(out_masks, 1)
+            correct_predictions = (predicted_labels == class_array).sum().item()
+            total_samples = class_array.size(0)
+            accuracy = correct_predictions / total_samples
+
             # Step the scheduler after the optimizer
             scheduler.step()
             log.info('lr = {}'.format(scheduler.get_last_lr()))  # Use get_last_lr()
     
             avg_batch_time = (time.time() - train_time_sp) / (1 + batch_id_sp)
             log.info(
-                    'Batch: {}-{} ({}), loss = {:.3f}, loss_seg = {:.3f}, avg_batch_time = {:.3f}'\
-                    .format(epoch, batch_id, batch_id_sp, loss.item(), loss_value_seg.item(), avg_batch_time))
+                    'Batch: {}-{} ({}), loss = {:.3f}, train_acc = {:.3f}, avg_batch_time = {:.3f}'\
+                    .format(epoch, batch_id, batch_id_sp, loss.item(), accuracy, avg_batch_time))
           
             if not sets.ci_test:
                 # save model
@@ -121,11 +113,14 @@ if __name__ == '__main__':
     # optimizer
     if sets.ci_test:
         params = [{'params': parameters, 'lr': sets.learning_rate}]
+    # else:
+    #     params = [
+    #             { 'params': parameters['base_parameters'], 'lr': sets.learning_rate }, 
+    #             { 'params': parameters['new_parameters'], 'lr': sets.learning_rate*100 }
+    #             ]
     else:
-        params = [
-                { 'params': parameters['base_parameters'], 'lr': sets.learning_rate }, 
-                { 'params': parameters['new_parameters'], 'lr': sets.learning_rate*100 }
-                ]
+        params = [{'params': parameters['new_parameters'], 'lr': sets.learning_rate}]
+
     # optimizer = torch.optim.SGD(params, momentum=0.9, weight_decay=1e-3)
     optimizer = torch.optim.AdamW(params) 
     scheduler = optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.99)
